@@ -1,0 +1,19 @@
+{
+  "name": "music-video-director",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MP3/WAV/SRT 기반 AI 뮤직비디오 기획, 프롬프트, 편집, SEO, MP4-to-MP3 변환 웹앱",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "music-video",
+    "youtube",
+    "srt",
+    "mp3",
+    "mp4",
+    "seo"
+  ],
+  "license": "UNLICENSED"
+}

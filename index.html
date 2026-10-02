@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Music Video Director</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark">MV</div>
+        <div>
+          <h1>Music Video Director</h1>
+          <p>MP3 + SRT 기반 뮤직비디오 제작</p>
+        </div>
+      </div>
+      <nav id="steps" class="steps"></nav>
+      <div class="side-actions">
+        <button id="homeBtn" class="ghost">처음 화면</button>
+        <button id="saveProjectBtn">프로젝트 저장</button>
+        <button id="loadProjectBtn" class="ghost">프로젝트 불러오기</button>
+        <input id="projectFile" type="file" accept=".json" hidden />
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <span class="eyebrow">7단계 제작 워크플로우</span>
+          <h2 id="pageTitle">1단계 · 파일 업로드</h2>
+        </div>
+        <div class="status">
+          <span id="apiHealth">API 미설정</span>
+          <button id="settingsBtn" class="icon-btn" title="설정">⚙</button>
+        </div>
+      </header>
+
+      <section id="stageUpload" class="stage active">
+        <div class="grid two">
+          <section class="panel">
+            <h3>음원 및 자막 업로드</h3>
+            <div class="drop">
+              <label>
+                <strong>MP3/WAV 업로드</strong>
+                <span>MP3 또는 WAV와 같은 제목의 SRT를 함께 선택하면 자동 연결됩니다.</span>
+                <input id="mp3Input" type="file" accept="audio/mp3,audio/mpeg,audio/wav,audio/wave,audio/x-wav,.mp3,.wav,.srt,text/plain" multiple />
+              </label>
+              <div id="mp3FileList" class="file-list"></div>
+            </div>
+            <div class="drop">
+              <label>
+                <strong>SRT 별도 업로드</strong>
+                <span>MP3와 제목이 다르거나 수정 자막을 쓰는 경우</span>
+                <input id="srtInput" type="file" accept=".srt,text/plain" />
+              </label>
+              <div id="srtFileList" class="file-list"></div>
+            </div>
+            <div class="drop">
+              <label>
+                <strong>참조 이미지 업로드</strong>
+                <span>3단계 스타일 고정을 위한 무드/캐릭터/색감 레퍼런스</span>
+                <input id="refInput" type="file" accept="image/*" multiple />
+              </label>
+            </div>
+          </section>
+          <section class="panel">
+            <h3>프로젝트 기본값</h3>
+            <div class="form-row">
+              <label>제목</label>
+              <input id="projectTitle" placeholder="예: 그리움이 남긴 편지" />
+            </div>
+            <div class="segmented" id="ratioGroup">
+              <button data-ratio="9:16" class="selected">9:16 쇼츠</button>
+              <button data-ratio="16:9">16:9 유튜브</button>
+              <button data-ratio="1:1">1:1</button>
+              <button data-ratio="4:5">4:5</button>
+            </div>
+            <div class="stats">
+              <div><b id="durationText">00:00</b><span>재생시간</span></div>
+              <div><b id="srtCount">0</b><span>자막 줄</span></div>
+              <div><b id="sceneEstimate">0</b><span>예상 씬</span></div>
+            </div>
+            <button id="analyzeBtn" class="primary">분석하고 2단계로</button>
+          </section>
+        </div>
+      </section>
+
+      <section id="stageConcept" class="stage">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>컨셉 추천</h3>
+            <button id="generateConceptsBtn">컨셉 다시 만들기</button>
+          </div>
+          <div class="controls">
+            <label>연령대
+              <select id="ageSelect">
+                <option>전 연령</option><option>10대</option><option>20-30대</option><option>40-50대</option><option>60대 이상</option>
+              </select>
+            </label>
+            <label>감정 톤
+              <select id="toneSelect">
+                <option>감동</option><option>눈물</option><option>재미</option><option>신뢰감</option><option>희망</option><option>몽환</option>
+              </select>
+            </label>
+            <label>영상 모델 기준
+              <select id="modelUnit">
+                <option value="9">옴니 9초 내외</option>
+                <option value="10">옴니 10초</option>
+                <option value="6">빠른 6초 클립</option>
+              </select>
+            </label>
+          </div>
+          <div id="conceptList" class="concept-list"></div>
+        </div>
+      </section>
+
+      <section id="stagePlan" class="stage">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>씬별 콘티 & 프롬프트</h3>
+            <div>
+              <button id="buildStoryboardBtn">콘티 생성</button>
+              <button id="copyAllImagePrompts">이미지 전체 복사</button>
+              <button id="copyAllVideoPrompts">영상 전체 복사</button>
+            </div>
+          </div>
+          <div class="master">
+            <label>마스터 프롬프트 추가 지시</label>
+            <textarea id="masterPrompt" rows="4" placeholder="예: 따뜻한 역광, 한국 시골 감성, 동일 인물 유지, 손과 얼굴 자연스럽게"></textarea>
+          </div>
+          <div class="style-section">
+            <div class="panel-head compact">
+              <h3>스타일 프리셋</h3>
+              <span id="selectedStyleText">01. 동양 현대 실사</span>
+            </div>
+            <div id="styleGrid" class="style-grid"></div>
+          </div>
+          <div id="storyboard" class="storyboard"></div>
+        </div>
+      </section>
+
+      <section id="stageAssets" class="stage">
+        <div class="grid two">
+          <section class="panel">
+            <h3>에셋 생성 API</h3>
+            <div class="api-grid" id="apiGrid"></div>
+            <div class="button-row">
+              <button id="exportSettings">설정 내보내기</button>
+              <button id="importSettings">설정 불러오기</button>
+              <button id="resetAllButKeys" class="ghost">API 키 빼고 초기화</button>
+              <button id="resetEverything" class="danger">전체 초기화</button>
+              <input id="settingsFile" type="file" accept=".json" hidden />
+            </div>
+            <div class="log" id="log"></div>
+          </section>
+          <section class="panel">
+            <h3>프롬프트/에셋 관리</h3>
+            <div class="style-section small">
+              <div class="panel-head compact">
+                <h3>적용 스타일</h3>
+                <span id="assetStyleText">01. 동양 현대 실사</span>
+              </div>
+              <div id="assetStyleGrid" class="style-grid mini"></div>
+            </div>
+            <div id="assetList" class="asset-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="stageEdit" class="stage">
+        <div class="final-editor">
+          <section class="final-head">
+            <div class="final-title">
+              <span class="step-badge">5</span>
+              <div>
+                <h3>Final Editor : 동영상 타임라인 & 자막·화면전환 완성</h3>
+                <p>그림/ZIP 파일 업로드 시 노래 시간에 맞춰 영상 자동 배치, 컷캣 인기 화면 전환 효과, 맞춤형 자막 스타일링, 무료 음성·BGM을 설정하여 MP4로 렌더링합니다.</p>
+              </div>
+            </div>
+            <div class="final-actions">
+              <label class="toggle"><input id="specialFx" type="checkbox" /> ⚡ 특수 비주얼 효과 <b>OFF</b></label>
+              <button id="studioSettingsBtn">스튜디오 상세 설정</button>
+              <button id="zipUploadBtn" class="green">그림/ZIP 파일 업로드</button>
+              <button id="historyKeepBtn" class="ghost green-outline">히스토리</button>
+              <select id="songVersion"><option>전체 노래</option><option>쇼츠 58초 훅버전</option><option>인트로 30초</option></select>
+              <button id="renderBtn" class="primary">최종 MP4 다운로드</button>
+            </div>
+          </section>
+
+          <section id="editDropZone" class="editor-drop">
+            <div class="upload-icon">⇧</div>
+            <div>
+              <strong>파일을 이곳이나 화면 어디든 끌어다 놓으세요 (Drag & Drop)</strong>
+              <p>그림(PNG/JPG/WEBP), ZIP 압축파일, MP3 음원, SRT 자막 파일을 끌어다 놓으면 노래 시간에 맞춰 자동으로 클립이 생성·배치됩니다.</p>
+              <div id="editFileList" class="file-list"></div>
+            </div>
+            <div class="drop-actions">
+              <button id="replaceClipsBtn">새로 교체</button>
+              <button id="appendClipsBtn" class="ghost">뒤에 추가</button>
+              <button id="pickEditFilesBtn">파일 선택</button>
+              <input id="clipUpload" type="file" accept="video/*,image/*,.zip,audio/*,.srt" multiple hidden />
+            </div>
+          </section>
+
+          <section class="live-caption">
+            <div class="caption-head">
+              <span>● 실시간 자막 직접 입력 & 편집 창</span>
+              <b>현재 시점: <em id="currentTimeLabel">00:00</em> (Scene 1)</b>
+              <button id="saveCaptionBtn">현재 장면에 자막 저장</button>
+            </div>
+            <div class="caption-input-row">
+              <input id="liveCaptionInput" value="어느새 겨울 속에 비친 내 얼굴, 주름진 눈가에 청춘이 묻어있네." />
+              <button id="copyCurrentSrt">현재 SRT 자막 복사</button>
+            </div>
+            <div class="caption-chips" id="captionChips"></div>
+          </section>
+
+          <div class="editor-workbench">
+            <section class="preview-stack">
+              <div class="preview-toolbar">
+                <span id="previewRatio">16:9</span>
+                <span id="previewTime">00:00 / 00:58</span>
+                <button id="motionAutoBtn">무빙: 자동</button>
+                <button id="transitionBadge">전환: fade</button>
+              </div>
+              <div class="preview-frame">
+                <canvas id="preview" width="720" height="1280"></canvas>
+                <button id="playPreviewBtn" class="play-btn">▷</button>
+                <div id="previewCaption" class="preview-caption">바람이 불어오는 곳 그곳으로 가네</div>
+              </div>
+              <video id="renderedVideo" controls hidden></video>
+              <div class="preview-sliders">
+                <label>클립 길이 <input id="globalClipDuration" type="range" min="3" max="15" value="9" /></label>
+                <label>BGM <input id="bgmVolume" type="range" min="0" max="100" value="18" /></label>
+                <label>TTS <input id="ttsVolume" type="range" min="0" max="100" value="0" /></label>
+              </div>
+            </section>
+
+            <section class="settings-board">
+              <div class="editor-tabs" id="editorTabs">
+                <button data-tab="timeline" class="active">타임라인</button>
+                <button data-tab="subtitle">자막 스타일</button>
+                <button data-tab="motion">카메라 무빙</button>
+                <button data-tab="transition">화면전환</button>
+                <button data-tab="audio">음성·BGM</button>
+                <button data-tab="title">타이틀(노래 제목)</button>
+                <button data-tab="fx">⚡ 특수 비주얼</button>
+              </div>
+
+              <div class="tab-panel active" data-panel="timeline">
+                <div class="info-box">
+                  <strong>🎵 대본 씬 & 노래 시간 준수 스마트 자동 배치</strong>
+                  <p>그림 파일 또는 ZIP을 화면에 끌어다 놓거나 업로드하면 파일명과 대본 구간을 감지하여 노래 전체 재생시간과 맞춰 100% 준수합니다.</p>
+                </div>
+                <div id="timeline" class="timeline rich"></div>
+              </div>
+
+              <div class="tab-panel" data-panel="subtitle">
+                <div class="setting-group">
+                  <h4>1. 위치 및 정렬</h4>
+                  <label>Y축 미세 위치 조절 <span id="subtitleYValue">0px</span><input id="subtitleY" type="range" min="-160" max="160" value="0" /></label>
+                  <div class="align-buttons"><button>☰</button><button class="selected">☰</button><button>☰</button></div>
+                </div>
+                <div class="setting-group">
+                  <h4>2. 폰트 크기 및 규격</h4>
+                  <label>폰트 크기 <span id="fontSizeValue">44px</span><input id="fontSize" type="range" min="24" max="72" value="44" /></label>
+                  <div class="two-controls">
+                    <select id="fontSelect"><option>도현체 (무료·배달의민족 타이틀)</option><option>Malgun Gothic</option><option>Pretendard</option><option>Arial</option></select>
+                    <select id="fontWeight"><option>굵게 (Bold)</option><option>보통</option><option>매우 굵게</option></select>
+                  </div>
+                  <label>자간 설정 <span id="letterValue">0px</span><input id="letterSpacing" type="range" min="-2" max="10" value="0" /></label>
+                </div>
+                <div class="setting-group">
+                  <h4>3. 자막 색상 & 외곽선</h4>
+                  <div class="color-row">
+                    <button data-color="#ffffff"></button><button data-color="#facc15"></button><button data-color="#f59e0b"></button><button data-color="#38bdf8"></button><button data-color="#4ade80"></button><button data-color="#f472b6"></button>
+                    <input id="fontColor" type="color" value="#ffffff" />
+                  </div>
+                  <label class="inline-check"><input id="strokeOn" type="checkbox" checked /> 외곽선 적용</label>
+                  <label>두께 <span id="strokeValue">3px</span><input id="strokeWidth" type="range" min="0" max="8" value="3" /></label>
+                </div>
+                <div class="setting-group">
+                  <h4>4. 배경 박스 스타일</h4>
+                  <div class="pill-grid">
+                    <button class="selected">둥근 필</button><button>사각 박스</button><button>그라데이션</button><button>외곽선만</button><button>배경 없음</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tab-panel" data-panel="motion">
+                <div class="setting-group">
+                  <h4>무빙 움직임 강도(속도/폭)</h4>
+                  <label>표준 <span id="motionValue">1.0x</span><input id="motionStrength" type="range" min="0.5" max="2" step="0.1" value="1" /></label>
+                </div>
+                <div class="setting-group apply-row">
+                  <select id="motionPreset"><option>자동 교차 무빙 - 장면마다 좌우, 위아래, 줌, 유형을 골고루 자동 교차</option><option>좌 → 우 패닝</option><option>우 → 좌 패닝</option><option>아래 → 위 틸트업</option><option>다이내믹 줌인</option></select>
+                  <button onclick="applyAllMotion()">전체 적용하기</button>
+                </div>
+                <div class="preset-grid" id="motionPresets"></div>
+              </div>
+
+              <div class="tab-panel" data-panel="transition">
+                <div class="setting-group">
+                  <h4>컷캣(CapCut) 인기 화면 전환 효과 컬렉션</h4>
+                  <p>두 이미지 클립이 교차하며 바뀌는 크로스 디졸브, 줌인, 슬라이드 등 자주 쓰이는 효과를 고르세요.</p>
+                </div>
+                <div class="setting-group apply-row">
+                  <select id="transitionPreset"><option>크로스 디졸브 - 두 이미지가 교차하며 부드럽게 전환</option><option>페이드 블랙</option><option>줌 인</option><option>줌 아웃</option><option>슬라이드 좌측</option><option>휩 팬</option></select>
+                  <button onclick="applyAllTransitions()">전체 적용하기</button>
+                </div>
+                <div class="preset-grid" id="transitionPresets"></div>
+              </div>
+
+              <div class="tab-panel" data-panel="audio">
+                <div class="setting-group">
+                  <h4>무료 음성·BGM</h4>
+                  <div class="two-controls">
+                    <select id="bgmSelect"><option value="calm">조용한 피아노 패드</option><option value="clean">깔끔한 앰비언트</option><option value="hope">희망적인 소프트 톤</option></select>
+                    <select id="voiceSelect"><option>브라우저 무료 한국어 음성</option><option>OpenAI TTS 연결 예정</option><option>ElevenLabs 연결 예정</option></select>
+                  </div>
+                  <div class="button-row"><button id="speakBtn">무료 음성 미리듣기</button><button id="downloadVideo" disabled>미리보기 이미지 다운로드</button></div>
+                </div>
+              </div>
+
+              <div class="tab-panel" data-panel="title">
+                <div class="setting-group">
+                  <h4>첫 페이지 타이틀 자막 연출 (영상 0~4초 노출)</h4>
+                  <label>메인 타이틀 제목 <button id="autoTitleBtn" class="mini-btn">노래 제목 자동 연동</button><input id="titleText" placeholder="영상 제목" /></label>
+                  <label>서브타이틀 / 아티스트명 <input id="subtitleTitle" value="YouTube MV Studio" /></label>
+                  <div class="two-controls">
+                    <label>타이틀 위치 <select id="titlePos"><option>상단</option><option>중앙</option><option>하단</option></select></label>
+                    <label>배경 박스 스타일 <select id="titleBg"><option>그라데이션 음영</option><option>둥근 필</option><option>배경 없음</option></select></label>
+                  </div>
+                  <label>폰트 크기 <input id="titleFontSize" type="range" min="30" max="86" value="44" /></label>
+                </div>
+              </div>
+
+              <div class="tab-panel" data-panel="fx">
+                <div class="setting-group">
+                  <h4>특수 비주얼 효과</h4>
+                  <div class="preset-grid">
+                    <button class="preset-card selected"><b>은은한 필름 그레인</b><span>감성 무드용 저강도 효과</span></button>
+                    <button class="preset-card"><b>빛 번짐</b><span>후렴구 진입 시 부드러운 글로우</span></button>
+                    <button class="preset-card"><b>비네팅</b><span>중앙 인물 집중</span></button>
+                    <button class="preset-card"><b>꿈결 블러</b><span>회상 장면용 부드러운 흐림</span></button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <footer class="editor-bottom">
+            <button id="historyKeepBottom" class="ghost green-outline">히스토리 보관함</button>
+            <button id="bottomUploadBtn" class="ghost">이미지/ZIP 업로드</button>
+            <button id="bottomRenderBtn" class="primary">최종 동영상 제작 & MP4 다운로드</button>
+          </footer>
+        </div>
+      </section>
+
+      <section id="stageSeo" class="stage">
+        <div class="grid two seo-layout">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>SEO 텍스트 입력</h3>
+              <button id="generateSeoBtn" class="primary">SEO 글 생성</button>
+            </div>
+            <p class="helper">가사, 대본, 콘셉트 설명, 영상 내용을 붙여 넣으면 유튜브 업로드용 문구를 다시 작성합니다.</p>
+            <textarea id="seoInput" class="seo-input" rows="18" placeholder="여기에 가사/대본/영상 설명을 붙여 넣으세요."></textarea>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h3>유튜브 SEO 결과</h3>
+              <button id="copySeoAll">전체 복사</button>
+            </div>
+            <div class="seo-result">
+              <label>유튜브 제목 (20자 이상)
+                <div class="copy-field">
+                  <input id="seoTitle" />
+                  <button id="copySeoTitle">복사</button>
+                </div>
+              </label>
+              <label>설명글
+                <textarea id="seoDesc" rows="10"></textarea>
+                <button id="copySeoDesc">설명글 복사</button>
+              </label>
+              <label>해시태그
+                <textarea id="seoTags" rows="5"></textarea>
+                <button id="copySeoTags">해시태그 복사</button>
+              </label>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="stageConvert" class="stage">
+        <div class="grid two converter-layout">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>MP4 → MP3 변환</h3>
+              <button id="convertMp4Btn" class="primary" disabled>MP3로 변환</button>
+            </div>
+            <p class="helper">MP4 파일을 업로드하면 브라우저에서 오디오를 추출해 MP3 파일로 변환합니다.</p>
+            <div class="drop converter-drop">
+              <label>
+                <strong>MP4 파일 업로드</strong>
+                <span>동영상 안의 오디오 트랙을 MP3로 추출합니다.</span>
+                <input id="mp4Input" type="file" accept="video/mp4,.mp4" />
+              </label>
+              <div id="mp4FileList" class="file-list"></div>
+            </div>
+            <div class="controls">
+              <label>MP3 품질
+                <select id="mp3Bitrate">
+                  <option value="128">128 kbps</option>
+                  <option value="192" selected>192 kbps</option>
+                  <option value="256">256 kbps</option>
+                  <option value="320">320 kbps</option>
+                </select>
+              </label>
+              <label>파일명
+                <input id="mp3OutputName" placeholder="output.mp3" />
+              </label>
+            </div>
+          </section>
+          <section class="panel">
+            <h3>변환 상태</h3>
+            <div class="convert-status">
+              <div class="progress"><span id="convertProgress"></span></div>
+              <p id="convertStatusText">MP4 파일을 선택해 주세요.</p>
+              <audio id="convertedAudio" controls hidden></audio>
+              <div class="button-row">
+                <button id="downloadMp3Btn" disabled>MP3 다운로드</button>
+                <button id="clearConvertBtn" class="ghost">초기화</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="historyPanel" class="history"></section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
